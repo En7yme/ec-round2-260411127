@@ -18,15 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32f1xx_hal_tim.h"
 #include "tim.h"
+#include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
-#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -60,6 +59,7 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 volatile uint8_t f_1ms=0;//1ms的控制节拍
 volatile uint16_t tick=0;//计时器
+uint8_t key_state=1;//用于反转led的按键的状态 1=高电平 未按下
 
 //声明四个状态变量
 void State_auto();//自动模式
@@ -86,7 +86,7 @@ StateMachine state_tab[4]={
   {State_manual},
   {State_return},
   {State_fault}
-}
+};
 Sys_State current_sys_state=STATE_RETURN;//定义当前系统状态 初始为回零状态
 /* USER CODE END 0 */
 
@@ -121,7 +121,32 @@ int main(void)
   MX_GPIO_Init();
   MX_USB_DEVICE_Init();
   MX_TIM3_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+
+//---------打印自检信息-----------------------------------------------------
+  printf("\r\n=================================\r\n");
+  printf("Project: Quad-axis_robotic_arm\r\n");
+  printf("System Clock: %lu Hz\r\n", HAL_RCC_GetSysClockFreq());
+
+  // 获取复位原因
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST)) {
+      printf("Reset Cause: Power On Reset (上电复位)\r\n");
+  } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST)) {
+      printf("Reset Cause: External Pin Reset (按键复位)\r\n");
+  } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)) {
+      printf("Reset Cause: Software Reset (软件复位)\r\n");
+  } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
+      printf("Reset Cause: Independent Watchdog Reset (看门狗复位)\r\n");
+  } else {
+      printf("Reset Cause: Unknown\r\n");
+  }
+
+  // 清除复位标志
+  __HAL_RCC_CLEAR_RESET_FLAGS();
+  printf("=================================\r\n");
+  //-------------------------------------------------------------------------
+
   HAL_TIM_Base_Start_IT(&htim3);//开启时基
   /* USER CODE END 2 */
 
@@ -135,13 +160,18 @@ int main(void)
 
     //===
     if(f_1ms){
+      tick++;
       f_1ms=0;
 
+      if(tick%1000==0){//LED以1Hz闪烁
+        HAL_GPIO_TogglePin(CHECK_GPIO_Port, CHECK_Pin);
+      }
       //每1ms要执行的-------------------
+
       
 
       //-------------------------------
-      tick++;
+      
       //200Hz插补周期-------------------
       if(tick%5==0){
 
@@ -151,6 +181,12 @@ int main(void)
       //50Hz状态上报--------------------
       if(tick%20==0){
 
+        //按键翻转LED
+        uint8_t current_key=HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7);
+        if(current_key==GPIO_PIN_RESET && key_state==GPIO_PIN_SET){
+          HAL_GPIO_TogglePin(CHECK_GPIO_Port, CHECK_Pin);
+        }
+        key_state=current_key;
       }//------------------------------
     }
   }
