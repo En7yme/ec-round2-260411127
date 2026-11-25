@@ -26,6 +26,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "arm.h"
+#include "stdlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -68,7 +70,7 @@ void State_return();//回零模式
 void State_fault();//故障模式
 
 //定义状态机结构体
-typedef struct{
+typedef struct{        
   void (*f)(void);
 } StateMachine;
 
@@ -98,7 +100,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+  
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -122,31 +124,34 @@ int main(void)
   MX_USB_DEVICE_Init();
   MX_TIM3_Init();
   MX_USART2_UART_Init();
+  MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
 
 //---------打印自检信息-----------------------------------------------------
-  printf("\r\n=================================\r\n");
-  printf("Project: Quad-axis_robotic_arm\r\n");
-  printf("System Clock: %lu Hz\r\n", HAL_RCC_GetSysClockFreq());
+  // printf("\r\n=================================\r\n");
+  // printf("Project: Quad-axis_robotic_arm\r\n");
+  // printf("System Clock: %lu Hz\r\n", HAL_RCC_GetSysClockFreq());
 
-  // 获取复位原因
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST)) {
-      printf("Reset Cause: Power On Reset (上电复位)\r\n");
-  } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST)) {
-      printf("Reset Cause: External Pin Reset (按键复位)\r\n");
-  } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)) {
-      printf("Reset Cause: Software Reset (软件复位)\r\n");
-  } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
-      printf("Reset Cause: Independent Watchdog Reset (看门狗复位)\r\n");
-  } else {
-      printf("Reset Cause: Unknown\r\n");
-  }
+  // // 获取复位原因
+  // if (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST)) {
+  //     printf("Reset Cause: Power On Reset (上电复位)\r\n");
+  // } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST)) {
+  //     printf("Reset Cause: External Pin Reset (按键复位)\r\n");
+  // } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)) {
+  //     printf("Reset Cause: Software Reset (软件复位)\r\n");
+  // } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
+  //     printf("Reset Cause: Independent Watchdog Reset (看门狗复位)\r\n");
+  // } else {
+  //     printf("Reset Cause: Unknown\r\n");
+  // }
 
-  // 清除复位标志
-  __HAL_RCC_CLEAR_RESET_FLAGS();
-  printf("=================================\r\n");
+  // // 清除复位标志
+  // __HAL_RCC_CLEAR_RESET_FLAGS();
+  // printf("=================================\r\n");
   //-------------------------------------------------------------------------
-
+  
+  Base_Init();
+  Arm_Init();
   HAL_TIM_Base_Start_IT(&htim3);//开启时基
   /* USER CODE END 2 */
 
@@ -174,16 +179,47 @@ int main(void)
       
       //200Hz插补周期-------------------
       if(tick%5==0){
+      //------------测试运行的代码
+      //   Arm_Update();
 
+      //   static uint8_t test_step = 0;
+      //   static uint16_t step_timer = 0;
+      //   step_timer += 5;
 
-      }//------------------------------
+      //   // --- 动作 0：全部回中 (持续 2 秒) ---
+      //   if(test_step == 0) {
+      //       if(step_timer >= 2000) {
+      //           // 1~3号走 S 曲线，底座转动（假设要往正方向转）
+      //           Arm_SetTarget(450, -450, 0); 
+                
+      //           // 调用底座：相对转 0度，最大速度偏移给 80（大概 80*5 = 400us）
+      //           // 如果你希望底座只在这个动作转 1 圈，可以通过校准得到角度值
+      //           // 但我们现在只是演示，让它在这个 1.2 秒的动作里转一下
+      //           Base_MoveAngle(360, 80); 
+                
+      //           test_step = 1;
+      //           step_timer = 0;
+      //       }
+      //   }
+      //   // --- 动作 1：大角度展开 (持续 2 秒) ---
+      //   else if(test_step == 1) {
+      //       if(step_timer >= 2000) {
+      //           Arm_SetTarget(0, 0, 900);    
+      //           Base_MoveAngle(-360, 80); // 反转回来
+                
+      //           test_step = 2;
+      //           step_timer = 0;
+      //       }
+      //   }
+      // } 
+      //----------------------------------------------
 
       //50Hz状态上报--------------------
       if(tick%20==0){
 
         //按键翻转LED
         uint8_t current_key=HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_7);
-        if(current_key==GPIO_PIN_RESET && key_state==GPIO_PIN_SET){
+        if(current_key==GPIO_PIN_RESET && key_state==GPIO_PIN_SET){//下降沿
           HAL_GPIO_TogglePin(CHECK_GPIO_Port, CHECK_Pin);
         }
         key_state=current_key;
