@@ -19,7 +19,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "tim.h"
-#include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
 
@@ -100,7 +99,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -121,35 +120,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USB_DEVICE_Init();
   MX_TIM3_Init();
-  MX_USART2_UART_Init();
   MX_TIM4_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
-//---------打印自检信息-----------------------------------------------------
-  // printf("\r\n=================================\r\n");
-  // printf("Project: Quad-axis_robotic_arm\r\n");
-  // printf("System Clock: %lu Hz\r\n", HAL_RCC_GetSysClockFreq());
-
-  // // 获取复位原因
-  // if (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST)) {
-  //     printf("Reset Cause: Power On Reset (上电复位)\r\n");
-  // } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST)) {
-  //     printf("Reset Cause: External Pin Reset (按键复位)\r\n");
-  // } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST)) {
-  //     printf("Reset Cause: Software Reset (软件复位)\r\n");
-  // } else if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
-  //     printf("Reset Cause: Independent Watchdog Reset (看门狗复位)\r\n");
-  // } else {
-  //     printf("Reset Cause: Unknown\r\n");
-  // }
-
-  // // 清除复位标志
-  // __HAL_RCC_CLEAR_RESET_FLAGS();
-  // printf("=================================\r\n");
-  //-------------------------------------------------------------------------
-  
   Base_Init();
   Arm_Init();
   HAL_TIM_Base_Start_IT(&htim3);//开启时基
@@ -162,7 +137,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
     //===
     if(f_1ms){
       tick++;
@@ -211,7 +185,7 @@ int main(void)
       //           step_timer = 0;
       //       }
       //   }
-      // } 
+      } 
       //----------------------------------------------
 
       //50Hz状态上报--------------------
@@ -224,6 +198,7 @@ int main(void)
         }
         key_state=current_key;
       }//------------------------------
+    
     }
   }
   /* USER CODE END 3 */
@@ -237,18 +212,23 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
-  RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
+  RCC_OscInitStruct.PLL.PLLM = 25;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 7;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -264,12 +244,6 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL_DIV1_5;
-  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
